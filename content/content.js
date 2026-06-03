@@ -65,4 +65,5 @@ const btn = document.createElement("a");
 btn.className = "btnv6_blue_hoverfade btn_medium";
 btn.href = "#";
 btn.innerHTML = "<span>Add game</span>";
+btn.onclick = (e) => { e.preventDefault(); addGame(appId); };
 document.querySelector(".apphub_OtherSiteInfo").appendChild(btn);
