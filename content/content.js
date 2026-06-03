@@ -6,7 +6,7 @@ btn.href = "#";
 btn.innerHTML = "<span>Add game</span>";
 btn.onclick = (e) => {
     e.preventDefault();
-    fetch("http://localhost:3000/" + appId, { method: "POST" }).then(r => {
+    fetch("http://127.0.0.1:3000/" + appId, { method: "POST" }).then(r => {
         if (r.ok) {
             window.alert("Game added!");
         } else {
