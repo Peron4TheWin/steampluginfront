@@ -1,4 +1,21 @@
-$SteamDir = "C:\Program Files (x86)\Steam"
+function Get-SteamPath {
+    $paths = @(
+        "HKCU:\Software\Valve\Steam",
+        "HKLM:\Software\WOW6432Node\Valve\Steam",
+        "HKLM:\Software\Valve\Steam"
+    )
+
+    foreach ($p in $paths) {
+        try {
+            $val = (Get-ItemProperty -Path $p -Name "SteamPath" -ErrorAction Stop).SteamPath
+            if ($val) { return $val.Trim('"') }
+        } catch {}
+    }
+
+    return "C:\Program Files (x86)\Steam"
+}
+
+$SteamDir = Get-SteamPath
 $LogFile  = "$SteamDir\update.log"
 
 function Write-Log($msg) {
