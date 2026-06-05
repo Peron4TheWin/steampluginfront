@@ -4,14 +4,12 @@ function Get-SteamPath {
         "HKLM:\Software\WOW6432Node\Valve\Steam",
         "HKLM:\Software\Valve\Steam"
     )
-
     foreach ($p in $paths) {
         try {
             $val = (Get-ItemProperty -Path $p -Name "SteamPath" -ErrorAction Stop).SteamPath
             if ($val) { return $val.Trim('"') }
         } catch {}
     }
-
     return "C:\Program Files (x86)\Steam"
 }
 
@@ -49,6 +47,22 @@ function Get-GitHubAsset($repo, $assetName) {
     }
 }
 
+# Igual que Get-GitHubAsset pero matchea por patron en lugar de nombre exacto
+function Get-GitHubAssetByPattern($repo, $pattern) {
+    try {
+        $headers = @{ "User-Agent" = "steampluginback/1.0"; "Accept" = "application/vnd.github+json" }
+        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/latest" -Headers $headers
+        $asset = $release.assets | Where-Object { $_.name -like $pattern } | Select-Object -First 1
+        if (-not $asset) { Write-Log "WARN: No asset matching '$pattern' found in $repo"; return $null }
+        $sha256 = ""
+        if ($asset.digest -match "^sha256:(.+)$") { $sha256 = $Matches[1] }
+        return @{ url = $asset.browser_download_url; sha256 = $sha256; tag = $release.tag_name; name = $asset.name }
+    } catch {
+        Write-Log "ERROR fetching $repo`: $_"
+        return $null
+    }
+}
+
 function Download-File($url, $dest) {
     try {
         Write-Log "Downloading: $url"
@@ -67,47 +81,90 @@ function Download-File($url, $dest) {
 Write-Log "============================================================"
 Write-Log "Update started"
 
-# === CloudRedirectCLI ===
-Write-Log "=== CloudRedirect ==="
-$crExe   = "$SteamDir\CloudRedirectCLI.exe"
-$crDll   = "$SteamDir\cloud_redirect.dll"
-$crStamp = "$SteamDir\CloudRedirectCLI.stamp"
-$crAsset = Get-GitHubAsset "Selectively11/CloudRedirect" "CloudRedirectCLI.exe"
+# === OpenSteamTool ===
+Write-Log "=== OpenSteamTool ==="
 
-if (-not $crAsset) {
-    Write-Log "WARN: Could not fetch CloudRedirect release info"
+# Los archivos que vienen dentro del zip y van al root de Steam
+$ostFiles   = @("dwmapi.dll", "xinput1_4.dll", "OpenSteamTool.dll")
+$ostStamp   = "$SteamDir\opensteamtool.stamp"
+$ostToml    = "$SteamDir\opensteamtool.toml"
+$luaDir     = "$SteamDir\config\stplug-in"
+
+# Buscamos el asset Release (no Debug) del ultimo release
+$ostAsset = Get-GitHubAssetByPattern "OpenSteam001/OpenSteamTool" "*-Release.zip"
+
+if (-not $ostAsset) {
+    Write-Log "WARN: Could not fetch OpenSteamTool release info"
 } else {
-    Write-Log "Latest: $($crAsset.tag) sha256: $($crAsset.sha256)"
-    $lastStamp = if (Test-Path $crStamp) { (Get-Content $crStamp -Raw).Trim() } else { "" }
-    $localHash = Get-SHA256File $crExe
-    Write-Log "Local: $localHash | Stamp: $lastStamp"
+    Write-Log "Latest: $($ostAsset.tag) ($($ostAsset.name)) sha256: $($ostAsset.sha256)"
 
-    $needsRun = $false
+    $lastStamp = if (Test-Path $ostStamp) { (Get-Content $ostStamp -Raw).Trim() } else { "" }
+    Write-Log "Stamp: $lastStamp"
 
-    if (-not (Test-Path $crExe)) {
-        Write-Log "CloudRedirectCLI.exe not found - downloading..."
-        $bytes = Download-File $crAsset.url $crExe
-        if ($bytes) { $needsRun = $true }
-    } elseif ($localHash -ne $crAsset.sha256) {
-        Write-Log "SHA256 mismatch - updating..."
-        $bytes = Download-File $crAsset.url $crExe
-        if ($bytes) { $needsRun = $true }
-    } elseif ($lastStamp -ne $crAsset.sha256) {
-        Write-Log "Not yet run for this version"
-        $needsRun = $true
-    } elseif (-not (Test-Path $crDll)) {
-        Write-Log "cloud_redirect.dll missing - running stfixer again"
-        $needsRun = $true
+    # Chequeamos si todos los archivos ya estan y el stamp coincide con el sha del release
+    $allPresent = ($ostFiles | Where-Object { -not (Test-Path "$SteamDir\$_") }).Count -eq 0
+
+    if ($allPresent -and $lastStamp -eq $ostAsset.sha256) {
+        Write-Log "OpenSteamTool up to date, skipping"
     } else {
-        Write-Log "CloudRedirectCLI up to date and already ran"
+        if (-not $allPresent) {
+            Write-Log "Some OpenSteamTool files missing, downloading..."
+        } else {
+            Write-Log "SHA256 mismatch or new version, updating..."
+        }
+
+        # Descargamos el zip a un temp
+        $tmpZip = [System.IO.Path]::GetTempFileName() + ".zip"
+        $bytes = Download-File $ostAsset.url $tmpZip
+
+        if ($bytes) {
+            # Verificamos sha256
+            $downloadedHash = Get-SHA256File $tmpZip
+            if ($ostAsset.sha256 -and $downloadedHash -ne $ostAsset.sha256) {
+                Write-Log "ERROR: SHA256 mismatch post-download ($downloadedHash), abortando"
+                Remove-Item $tmpZip -Force -ErrorAction SilentlyContinue
+            } else {
+                # Extraemos solo los archivos que necesitamos al root de Steam
+                try {
+                    Add-Type -AssemblyName System.IO.Compression.FileSystem
+                    $zip = [System.IO.Compression.ZipFile]::OpenRead($tmpZip)
+                    foreach ($entry in $zip.Entries) {
+                        if ($ostFiles -contains $entry.Name) {
+                            $destPath = "$SteamDir\$($entry.Name)"
+                            $stream = $entry.Open()
+                            $fs = [System.IO.File]::Create($destPath)
+                            $stream.CopyTo($fs)
+                            $fs.Close()
+                            $stream.Close()
+                            Write-Log "Extracted: $($entry.Name)"
+                        }
+                    }
+                    $zip.Dispose()
+                    Write-Log "OpenSteamTool extracted OK"
+
+                    # Guardamos el stamp con el sha256 del release
+                    Set-Content -Path $ostStamp -Value $ostAsset.sha256 -NoNewline
+                    Write-Log "Stamp saved"
+                } catch {
+                    Write-Log "ERROR extracting zip: $_"
+                }
+                Remove-Item $tmpZip -Force -ErrorAction SilentlyContinue
+            }
+        }
     }
 
-    if ($needsRun) {
-        Write-Log "Running CloudRedirectCLI /stfixer..."
-        $proc = Start-Process -FilePath $crExe -ArgumentList "/stfixer" -Wait -PassThru
-        Write-Log "CloudRedirectCLI exited with code: $($proc.ExitCode)"
-        Set-Content -Path $crStamp -Value $crAsset.sha256 -NoNewline
-        Write-Log "Stamp saved"
+    # Creamos el toml si no existe
+    if (-not (Test-Path $ostToml)) {
+        Write-Log "Creando opensteamtool.toml..."
+        $luaDirForward = $luaDir.Replace("\", "/")
+        $tomlContent = @"
+[lua]
+paths = ["$luaDirForward"]
+"@
+        Set-Content -Path $ostToml -Value $tomlContent -NoNewline -Encoding UTF8
+        Write-Log "opensteamtool.toml creado"
+    } else {
+        Write-Log "opensteamtool.toml ya existe, no se toca"
     }
 }
 
