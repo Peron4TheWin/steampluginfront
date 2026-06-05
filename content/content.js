@@ -39,13 +39,14 @@
         setTimeout(() => overlay.querySelector("#hc-key-input").focus(), 50);
     }
 
-    async function addGame(id) {
+    async function addGame(id, btn) {
         const r = await fetch(`http://127.0.0.1:3000/${id}`, {
             method: "POST"
         });
 
         if (r.ok) {
             showToast("Game added!");
+            setButtonMode(btn, "remove");
             return;
         }
 
@@ -61,9 +62,12 @@
                         method: "POST"
                     });
 
-                    retry.ok
-                        ? showToast("Game added!")
-                        : showToast("Error: " + await retry.text(), true);
+                    if (retry.ok) {
+                        showToast("Game added!");
+                        setButtonMode(btn, "remove");
+                    } else {
+                        showToast("Error: " + await retry.text(), true);
+                    }
                 } else {
                     showToast("Key inválida: " + await keyRes.text(), true);
                     showKeyModal(askKey);
@@ -77,6 +81,36 @@
         showToast("Error " + r.status + ": " + await r.text(), true);
     }
 
+    async function removeGame(id, btn) {
+        const r = await fetch(`http://127.0.0.1:3000/remove/${id}`, {
+            method: "DELETE"
+        });
+
+        if (r.ok) {
+            showToast("Game removed!");
+            setButtonMode(btn, "add");
+            return;
+        }
+
+        showToast("Error " + r.status + ": " + await r.text(), true);
+    }
+
+    function setButtonMode(btn, mode) {
+        if (mode === "remove") {
+            btn.querySelector("span").textContent = "Remove game";
+            btn.onclick = (e) => {
+                e.preventDefault();
+                removeGame(appId, btn);
+            };
+        } else {
+            btn.querySelector("span").textContent = "Add game";
+            btn.onclick = (e) => {
+                e.preventDefault();
+                addGame(appId, btn);
+            };
+        }
+    }
+
     function showToast(msg, isError = false) {
         const t = document.createElement("div");
         t.style.cssText = `position:fixed;bottom:24px;right:24px;background:${isError ? "#922" : "#4c6b22"};color:#fff;padding:10px 18px;border-radius:4px;font-size:13px;z-index:99999;font-family:Arial,sans-serif;`;
@@ -85,20 +119,33 @@
         setTimeout(() => t.remove(), 3000);
     }
 
-    function injectButton() {
+    async function injectButton() {
         const container = document.querySelector(".apphub_OtherSiteInfo");
         if (!container) return;
-
         if (container.querySelector(".hubcap-add-game")) return;
 
         const btn = document.createElement("a");
         btn.className = "btnv6_blue_hoverfade btn_medium hubcap-add-game";
         btn.href = "#";
         btn.innerHTML = "<span>Add game</span>";
-        btn.onclick = (e) => {
-            e.preventDefault();
-            addGame(appId);
-        };
+
+        // Check si ya está instalado antes de mostrar el botón
+        try {
+            const check = await fetch(`http://127.0.0.1:3000/check/${appId}`);
+            if (check.ok) {
+                const installed = await check.json();
+                if (installed) {
+                    setButtonMode(btn, "remove");
+                } else {
+                    setButtonMode(btn, "add");
+                }
+            } else {
+                // Si el check falla, default a add
+                setButtonMode(btn, "add");
+            }
+        } catch {
+            setButtonMode(btn, "add");
+        }
 
         container.appendChild(btn);
     }
