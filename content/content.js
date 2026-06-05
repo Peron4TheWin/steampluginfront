@@ -32,16 +32,16 @@ function showKeyModal(onSubmit) {
 }
 
 async function addGame(id) {
-    const r = await fetch("http://127.0.0.1:3000/" + id, { method: "POST" });
+    const r = await fetch("http://127.0.0.1:27060/" + id, { method: "POST" });
     if (r.ok) {
         showToast("Game added!");
         return;
     }
     if (r.status === 401) {
         showKeyModal(async (key) => {
-            const keyRes = await fetch("http://127.0.0.1:3000/key", { method: "POST", body: key });
+            const keyRes = await fetch("http://127.0.0.1:27060/key", { method: "POST", body: key });
             if (keyRes.ok) {
-                const retry = await fetch("http://127.0.0.1:3000/" + id, { method: "POST" });
+                const retry = await fetch("http://127.0.0.1:27060/" + id, { method: "POST" });
                 retry.ok ? showToast("Game added!") : showToast("Error: " + await retry.text(), true);
             } else {
                 showToast("Key inválida: " + await keyRes.text(), true);
