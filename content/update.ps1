@@ -16,6 +16,32 @@ function Get-SteamPath {
 $SteamDir = Get-SteamPath
 $LogFile  = "$SteamDir\update.log"
 
+# ============================================================
+# Kill todos los procesos Steam
+# ============================================================
+
+Get-Process | Where-Object {
+    $_.ProcessName -match "steam"
+} | ForEach-Object {
+    try {
+        Stop-Process -Id $_.Id -Force -ErrorAction Stop
+        Write-Host "Killed $($_.ProcessName) ($($_.Id))"
+    } catch {}
+}
+
+Start-Sleep -Seconds 2
+
+# ============================================================
+# Crear .cef-enable-remote-debugging
+# ============================================================
+
+$cefFile = Join-Path $SteamDir ".cef-enable-remote-debugging"
+
+if (-not (Test-Path $cefFile)) {
+    New-Item -Path $cefFile -ItemType File -Force | Out-Null
+}
+
+
 function Write-Log($msg) {
     $ts = [int][double]::Parse((Get-Date -UFormat %s))
     $line = "[$ts] $msg"
