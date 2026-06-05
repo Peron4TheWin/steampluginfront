@@ -133,12 +133,7 @@
         try {
             const check = await fetch(`http://127.0.0.1:3000/check/${appId}`);
             if (check.ok) {
-                const installed = await check.json();
-                if (installed) {
-                    setButtonMode(btn, "remove");
-                } else {
-                    setButtonMode(btn, "add");
-                }
+                setButtonMode(btn, "remove");
             } else {
                 // Si el check falla, default a add
                 setButtonMode(btn, "add");
