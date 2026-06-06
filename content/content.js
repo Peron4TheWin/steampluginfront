@@ -83,7 +83,7 @@
 
     async function removeGame(id, btn) {
         const r = await fetch(`http://127.0.0.1:3000/remove/${id}`, {
-            method: "DELETE"
+            method: "POST"
         });
 
         if (r.ok) {
