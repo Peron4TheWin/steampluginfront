@@ -39,19 +39,21 @@
         setTimeout(() => overlay.querySelector("#hc-key-input").focus(), 50);
     }
 
-    async function addGame(id, btn) {
-        const r = await fetch(`http://127.0.0.1:3000/${id}`, {
-            method: "POST"
-        });
+    async function addGame(id, btn, keyless = false) {
+        const url = keyless
+            ? `http://127.0.0.1:3000/keyless/${id}`
+            : `http://127.0.0.1:3000/${id}`;
+
+        const r = await fetch(url, { method: "POST" });
 
         if (r.ok) {
-            showToast("Game added!");
+            showToast(keyless ? "Game added (keyless)!" : "Game added!");
             setButtonMode(btn, "remove");
             await refreshLimit();
             return;
         }
 
-        if (r.status === 401) {
+        if (r.status === 401 && !keyless) {
             const askKey = async (key) => {
                 const keyRes = await fetch("http://127.0.0.1:3000/key", {
                     method: "POST",
@@ -59,10 +61,7 @@
                 });
 
                 if (keyRes.ok) {
-                    const retry = await fetch(`http://127.0.0.1:3000/${id}`, {
-                        method: "POST"
-                    });
-
+                    const retry = await fetch(`http://127.0.0.1:3000/${id}`, { method: "POST" });
                     if (retry.ok) {
                         showToast("Game added!");
                         setButtonMode(btn, "remove");
@@ -105,11 +104,16 @@
                 e.preventDefault();
                 removeGame(appId, btn);
             };
+            btn.oncontextmenu = null;
         } else {
             btn.querySelector("span").textContent = "Add game";
             btn.onclick = (e) => {
                 e.preventDefault();
-                addGame(appId, btn);
+                addGame(appId, btn, false);
+            };
+            btn.oncontextmenu = (e) => {
+                e.preventDefault();
+                addGame(appId, btn, true);
             };
         }
     }
@@ -162,7 +166,6 @@
 
         container.appendChild(btn);
 
-        // Inject limit indicator
         const limitEl = document.createElement("div");
         limitEl.style.cssText = "display:inline-flex;align-items:center;gap:6px;margin-left:12px;font-family:Arial,sans-serif;font-size:13px;color:#c6d4df;vertical-align:middle;";
         limitEl.innerHTML = `<span style="color:#8f98a0;">Daily limit:</span> <span class="hubcap-limit-text" style="color:#8f98a0;">...</span>`;
