@@ -109,11 +109,11 @@
             btn.querySelector("span").textContent = "Add game";
             btn.onclick = (e) => {
                 e.preventDefault();
-                addGame(appId, btn, false);
+                addGame(appId, btn, true);
             };
             btn.oncontextmenu = (e) => {
                 e.preventDefault();
-                addGame(appId, btn, true);
+                addGame(appId, btn, false);
             };
         }
     }
