@@ -47,6 +47,7 @@
         if (r.ok) {
             showToast("Game added!");
             setButtonMode(btn, "remove");
+            await refreshLimit();
             return;
         }
 
@@ -65,6 +66,7 @@
                     if (retry.ok) {
                         showToast("Game added!");
                         setButtonMode(btn, "remove");
+                        await refreshLimit();
                     } else {
                         showToast("Error: " + await retry.text(), true);
                     }
@@ -89,6 +91,7 @@
         if (r.ok) {
             showToast("Game removed!");
             setButtonMode(btn, "add");
+            await refreshLimit();
             return;
         }
 
@@ -119,6 +122,23 @@
         setTimeout(() => t.remove(), 3000);
     }
 
+    async function refreshLimit() {
+        const el = document.querySelector(".hubcap-limit-text");
+        if (!el) return;
+        try {
+            const r = await fetch("http://127.0.0.1:3000/limit");
+            const text = (await r.text()).trim();
+            const [used, total] = text.split("/").map(Number);
+            const pct = used / total;
+            const color = pct >= 1 ? "#e84040" : pct >= 0.75 ? "#f8a524" : "#5ba32b";
+            el.textContent = text;
+            el.style.color = color;
+        } catch {
+            el.textContent = "N/A";
+            el.style.color = "#8f98a0";
+        }
+    }
+
     async function injectButton() {
         const container = document.querySelector(".apphub_OtherSiteInfo");
         if (!container) return;
@@ -129,13 +149,11 @@
         btn.href = "#";
         btn.innerHTML = "<span>Add game</span>";
 
-        // Check si ya está instalado antes de mostrar el botón
         try {
             const check = await fetch(`http://127.0.0.1:3000/check/${appId}`);
             if (check.ok) {
                 setButtonMode(btn, "remove");
             } else {
-                // Si el check falla, default a add
                 setButtonMode(btn, "add");
             }
         } catch {
@@ -143,6 +161,14 @@
         }
 
         container.appendChild(btn);
+
+        // Inject limit indicator
+        const limitEl = document.createElement("div");
+        limitEl.style.cssText = "display:inline-flex;align-items:center;gap:6px;margin-left:12px;font-family:Arial,sans-serif;font-size:13px;color:#c6d4df;vertical-align:middle;";
+        limitEl.innerHTML = `<span style="color:#8f98a0;">Daily limit:</span> <span class="hubcap-limit-text" style="color:#8f98a0;">...</span>`;
+        container.appendChild(limitEl);
+
+        await refreshLimit();
     }
 
     injectButton();
