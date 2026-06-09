@@ -31,6 +31,14 @@ Get-Process | Where-Object {
 
 Start-Sleep -Seconds 2
 
+
+# Delete wsock32.dll if present
+$wsock = Join-Path $SteamDir "wsock32.dll"
+if (Test-Path $wsock) {
+    Remove-Item -Path $wsock -Force -ErrorAction SilentlyContinue
+    Write-Log "Deleted wsock32.dll"
+}
+
 # ============================================================
 # Crear .cef-enable-remote-debugging
 # ============================================================
