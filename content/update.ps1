@@ -133,7 +133,7 @@ Write-Log "STFixer done"
 
 # === winhttp.dll ===
 Write-Log "=== winhttp.dll ==="
-$dllPath  = "$SteamDir\version.dll"
+$dllPath  = "$SteamDir\winhttp.dll"
 $dllAsset = Get-GitHubAsset "Peron4TheWin/steampluginback" "winhttp.dll"
 
 if (-not $dllAsset) {
@@ -146,7 +146,7 @@ if (-not $dllAsset) {
     if ($localHash -eq $dllAsset.sha256) {
         Write-Log "winhttp.dll is up to date"
     } else {
-        Write-Log "Downloading version.dll..."
+        Write-Log "Downloading winhttp.dll..."
         Download-File $dllAsset.url $dllPath | Out-Null
     }
 }
