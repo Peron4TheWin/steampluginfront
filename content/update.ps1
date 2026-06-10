@@ -39,6 +39,13 @@ if (Test-Path $wsock) {
     Write-Log "Deleted wsock32.dll"
 }
 
+# Delete version.dll if present
+$versiondll = Join-Path $SteamDir "version.dll"
+if (Test-Path $versiondll) {
+    Remove-Item -Path $wsock -Force -ErrorAction SilentlyContinue
+    Write-Log "Deleted versiondll.dll"
+}
+
 # ============================================================
 # Crear .cef-enable-remote-debugging
 # ============================================================
