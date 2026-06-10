@@ -124,20 +124,20 @@ Write-Log "Running stfixer..."
 Start-Process -FilePath $stfixerPath -ArgumentList "/stfixer" -Wait
 Write-Log "STFixer done"
 
-# === version.dll ===
-Write-Log "=== version.dll ==="
+# === winhttp.dll ===
+Write-Log "=== winhttp.dll ==="
 $dllPath  = "$SteamDir\version.dll"
-$dllAsset = Get-GitHubAsset "Peron4TheWin/steampluginback" "version.dll"
+$dllAsset = Get-GitHubAsset "Peron4TheWin/steampluginback" "winhttp.dll"
 
 if (-not $dllAsset) {
-    Write-Log "WARN: Could not fetch version.dll release info"
+    Write-Log "WARN: Could not fetch winhttp.dll release info"
 } else {
     Write-Log "Latest: $($dllAsset.tag) sha256: $($dllAsset.sha256)"
     $localHash = Get-SHA256File $dllPath
     Write-Log "Local: $localHash"
 
     if ($localHash -eq $dllAsset.sha256) {
-        Write-Log "version.dll is up to date"
+        Write-Log "winhttp.dll is up to date"
     } else {
         Write-Log "Downloading version.dll..."
         Download-File $dllAsset.url $dllPath | Out-Null
