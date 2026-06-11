@@ -41,8 +41,8 @@
 
     async function addGame(id, btn, keyless = false) {
         const url = keyless
-            ? `http://127.0.0.1:3000/keyless/${id}`
-            : `http://127.0.0.1:3000/${id}`;
+            ? `http://127.0.0.1:27060/keyless/${id}`
+            : `http://127.0.0.1:27060/${id}`;
 
         const r = await fetch(url, { method: "POST" });
 
@@ -55,13 +55,13 @@
 
         if (r.status === 401 && !keyless) {
             const askKey = async (key) => {
-                const keyRes = await fetch("http://127.0.0.1:3000/key", {
+                const keyRes = await fetch("http://127.0.0.1:27060/key", {
                     method: "POST",
                     body: key
                 });
 
                 if (keyRes.ok) {
-                    const retry = await fetch(`http://127.0.0.1:3000/${id}`, { method: "POST" });
+                    const retry = await fetch(`http://127.0.0.1:27060/${id}`, { method: "POST" });
                     if (retry.ok) {
                         showToast("Game added!");
                         setButtonMode(btn, "remove");
@@ -83,7 +83,7 @@
     }
 
     async function removeGame(id, btn) {
-        const r = await fetch(`http://127.0.0.1:3000/remove/${id}`, {
+        const r = await fetch(`http://127.0.0.1:27060/remove/${id}`, {
             method: "POST"
         });
 
@@ -130,7 +130,7 @@
         const el = document.querySelector(".hubcap-limit-text");
         if (!el) return;
         try {
-            const r = await fetch("http://127.0.0.1:3000/limit");
+            const r = await fetch("http://127.0.0.1:27060/limit");
             const text = (await r.text()).trim();
             const [used, total] = text.split("/").map(Number);
             const pct = used / total;
@@ -154,7 +154,7 @@
         btn.innerHTML = "<span>Add game</span>";
 
         try {
-            const check = await fetch(`http://127.0.0.1:3000/check/${appId}`);
+            const check = await fetch(`http://127.0.0.1:27060/check/${appId}`);
             if (check.ok) {
                 setButtonMode(btn, "remove");
             } else {
