@@ -39,6 +39,13 @@ if (Test-Path $wsock) {
     Write-Log "Deleted wsock32.dll"
 }
 
+$winhttp = Join-Path $SteamDir "winhttp.dll"
+if (Test-Path $winhttp) {
+    Remove-Item -Path $winhttp -Force -ErrorAction SilentlyContinue
+    Write-Log "Deleted winhttp.dll"
+}
+
+
 # Delete version.dll if present
 $versiondll = Join-Path $SteamDir "version.dll"
 if (Test-Path $versiondll) {
@@ -131,22 +138,22 @@ Write-Log "Running stfixer..."
 Start-Process -FilePath $stfixerPath -ArgumentList "/stfixer" -Wait
 Write-Log "STFixer done"
 
-# === winhttp.dll ===
-Write-Log "=== winhttp.dll ==="
-$dllPath  = "$SteamDir\winhttp.dll"
-$dllAsset = Get-GitHubAsset "Peron4TheWin/steampluginback" "winhttp.dll"
+# === wsock32.dll ===
+Write-Log "=== wsock32.dll ==="
+$dllPath  = "$SteamDir\wsock32.dll"
+$dllAsset = Get-GitHubAsset "Peron4TheWin/steampluginback" "wsock32.dll"
 
 if (-not $dllAsset) {
-    Write-Log "WARN: Could not fetch winhttp.dll release info"
+    Write-Log "WARN: Could not fetch wsock32.dll release info"
 } else {
     Write-Log "Latest: $($dllAsset.tag) sha256: $($dllAsset.sha256)"
     $localHash = Get-SHA256File $dllPath
     Write-Log "Local: $localHash"
 
     if ($localHash -eq $dllAsset.sha256) {
-        Write-Log "winhttp.dll is up to date"
+        Write-Log "wsock32.dll is up to date"
     } else {
-        Write-Log "Downloading winhttp.dll..."
+        Write-Log "Downloading wsock32.dll..."
         Download-File $dllAsset.url $dllPath | Out-Null
     }
 }
