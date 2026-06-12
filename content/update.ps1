@@ -16,54 +16,6 @@ function Get-SteamPath {
 $SteamDir = Get-SteamPath
 $LogFile  = "$SteamDir\update.log"
 
-# ============================================================
-# Kill todos los procesos Steam
-# ============================================================
-
-Get-Process | Where-Object {
-    $_.ProcessName -match "steam"
-} | ForEach-Object {
-    try {
-        Stop-Process -Id $_.Id -Force -ErrorAction Stop
-        Write-Host "Killed $($_.ProcessName) ($($_.Id))"
-    } catch {}
-}
-
-Start-Sleep -Seconds 2
-
-
-# Delete wsock32.dll if present
-$wsock = Join-Path $SteamDir "wsock32.dll"
-if (Test-Path $wsock) {
-    Remove-Item -Path $wsock -Force -ErrorAction SilentlyContinue
-    Write-Log "Deleted wsock32.dll"
-}
-
-$winhttp = Join-Path $SteamDir "winhttp.dll"
-if (Test-Path $winhttp) {
-    Remove-Item -Path $winhttp -Force -ErrorAction SilentlyContinue
-    Write-Log "Deleted winhttp.dll"
-}
-
-
-# Delete version.dll if present
-$versiondll = Join-Path $SteamDir "version.dll"
-if (Test-Path $versiondll) {
-    Remove-Item -Path $wsock -Force -ErrorAction SilentlyContinue
-    Write-Log "Deleted versiondll.dll"
-}
-
-# ============================================================
-# Crear .cef-enable-remote-debugging
-# ============================================================
-
-$cefFile = Join-Path $SteamDir ".cef-enable-remote-debugging"
-
-if (-not (Test-Path $cefFile)) {
-    New-Item -Path $cefFile -ItemType File -Force | Out-Null
-}
-
-
 function Write-Log($msg) {
     $ts = [int][double]::Parse((Get-Date -UFormat %s))
     $line = "[$ts] $msg"
@@ -109,6 +61,50 @@ function Download-File($url, $dest) {
         Write-Log "ERROR downloading $url`: $_"
         return $null
     }
+}
+
+# ============================================================
+# Kill todos los procesos Steam
+# ============================================================
+
+Get-Process | Where-Object {
+    $_.ProcessName -match "steam"
+} | ForEach-Object {
+    try {
+        Stop-Process -Id $_.Id -Force -ErrorAction Stop
+        Write-Host "Killed $($_.ProcessName) ($($_.Id))"
+    } catch {}
+}
+
+Start-Sleep -Seconds 2
+
+# Delete wsock32.dll if present
+$wsock = Join-Path $SteamDir "wsock32.dll"
+if (Test-Path $wsock) {
+    Remove-Item -Path $wsock -Force -ErrorAction SilentlyContinue
+    Write-Log "Deleted wsock32.dll"
+}
+
+$winhttp = Join-Path $SteamDir "winhttp.dll"
+if (Test-Path $winhttp) {
+    Remove-Item -Path $winhttp -Force -ErrorAction SilentlyContinue
+    Write-Log "Deleted winhttp.dll"
+}
+
+# Delete version.dll if present
+$versiondll = Join-Path $SteamDir "version.dll"
+if (Test-Path $versiondll) {
+    Remove-Item -Path $versiondll -Force -ErrorAction SilentlyContinue
+    Write-Log "Deleted version.dll"
+}
+
+# ============================================================
+# Crear .cef-enable-remote-debugging
+# ============================================================
+
+$cefFile = Join-Path $SteamDir ".cef-enable-remote-debugging"
+if (-not (Test-Path $cefFile)) {
+    New-Item -Path $cefFile -ItemType File -Force | Out-Null
 }
 
 Write-Log "============================================================"
