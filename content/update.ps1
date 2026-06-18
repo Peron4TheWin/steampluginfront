@@ -48,6 +48,22 @@ function Get-GitHubAsset($repo, $assetName) {
     }
 }
 
+# Igual que Get-GitHubAsset pero matchea por patron en lugar de nombre exacto
+function Get-GitHubAssetByPattern($repo, $pattern) {
+    try {
+        $headers = @{ "User-Agent" = "steampluginback/1.0"; "Accept" = "application/vnd.github+json" }
+        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/latest" -Headers $headers
+        $asset = $release.assets | Where-Object { $_.name -like $pattern } | Select-Object -First 1
+        if (-not $asset) { Write-Log "WARN: No asset matching '$pattern' found in $repo"; return $null }
+        $sha256 = ""
+        if ($asset.digest -match "^sha256:(.+)$") { $sha256 = $Matches[1] }
+        return @{ url = $asset.browser_download_url; sha256 = $sha256; tag = $release.tag_name; name = $asset.name }
+    } catch {
+        Write-Log "ERROR fetching $repo`: $_"
+        return $null
+    }
+}
+
 function Download-File($url, $dest) {
     try {
         Write-Log "Downloading: $url"
@@ -110,29 +126,84 @@ if (-not (Test-Path $cefFile)) {
 Write-Log "============================================================"
 Write-Log "Update started"
 
-# === STFixer (CloudRedirectCLI) ===
-Write-Log "=== STFixer ==="
-$stfixerPath  = "$SteamDir\stfixer.exe"
-$stfixerAsset = Get-GitHubAsset "Selectively11/CloudRedirect" "CloudRedirectCLI.exe"
+# === OpenSteamTool ===
+Write-Log "=== OpenSteamTool ==="
 
-if (-not $stfixerAsset) {
-    Write-Log "WARN: Could not fetch STFixer release info"
+$ostFiles   = @("OpenSteamTool.dll")
+$ostStamp   = "$SteamDir\opensteamtool.stamp"
+$ostToml    = "$SteamDir\opensteamtool.toml"
+$luaDir     = "$SteamDir\config\stplug-in"
+
+$ostAsset = Get-GitHubAssetByPattern "OpenSteam001/OpenSteamTool" "*-Release.zip"
+
+if (-not $ostAsset) {
+    Write-Log "WARN: Could not fetch OpenSteamTool release info"
 } else {
-    Write-Log "Latest: $($stfixerAsset.tag) sha256: $($stfixerAsset.sha256)"
-    $localHash = Get-SHA256File $stfixerPath
-    Write-Log "Local: $localHash"
+    Write-Log "Latest: $($ostAsset.tag) ($($ostAsset.name)) sha256: $($ostAsset.sha256)"
 
-    if ($localHash -eq $stfixerAsset.sha256) {
-        Write-Log "stfixer.exe is up to date"
+    $lastStamp = if (Test-Path $ostStamp) { (Get-Content $ostStamp -Raw).Trim() } else { "" }
+    Write-Log "Stamp: $lastStamp"
+
+    $allPresent = ($ostFiles | Where-Object { -not (Test-Path "$SteamDir\$_") }).Count -eq 0
+
+    if ($allPresent -and $lastStamp -eq $ostAsset.sha256) {
+        Write-Log "OpenSteamTool up to date, skipping"
     } else {
-        Write-Log "Downloading stfixer.exe..."
-        Download-File $stfixerAsset.url $stfixerPath | Out-Null
+        if (-not $allPresent) {
+            Write-Log "Some OpenSteamTool files missing, downloading..."
+        } else {
+            Write-Log "SHA256 mismatch or new version, updating..."
+        }
+
+        $tmpZip = [System.IO.Path]::GetTempFileName() + ".zip"
+        $bytes = Download-File $ostAsset.url $tmpZip
+
+        if ($bytes) {
+            $downloadedHash = Get-SHA256File $tmpZip
+            if ($ostAsset.sha256 -and $downloadedHash -ne $ostAsset.sha256) {
+                Write-Log "ERROR: SHA256 mismatch post-download ($downloadedHash), abortando"
+                Remove-Item $tmpZip -Force -ErrorAction SilentlyContinue
+            } else {
+                try {
+                    Add-Type -AssemblyName System.IO.Compression.FileSystem
+                    $zip = [System.IO.Compression.ZipFile]::OpenRead($tmpZip)
+                    foreach ($entry in $zip.Entries) {
+                        if ($ostFiles -contains $entry.Name) {
+                            $destPath = "$SteamDir\$($entry.Name)"
+                            $stream = $entry.Open()
+                            $fs = [System.IO.File]::Create($destPath)
+                            $stream.CopyTo($fs)
+                            $fs.Close()
+                            $stream.Close()
+                            Write-Log "Extracted: $($entry.Name)"
+                        }
+                    }
+                    $zip.Dispose()
+                    Write-Log "OpenSteamTool extracted OK"
+                    Set-Content -Path $ostStamp -Value $ostAsset.sha256 -NoNewline
+                    Write-Log "Stamp saved"
+                } catch {
+                    Write-Log "ERROR extracting zip: $_"
+                }
+                Remove-Item $tmpZip -Force -ErrorAction SilentlyContinue
+            }
+        }
+    }
+
+    # Crear toml si no existe, apuntando al dir de plugins del backend
+    if (-not (Test-Path $ostToml)) {
+        Write-Log "Creando opensteamtool.toml..."
+        $luaDirForward = $luaDir.Replace("\", "/")
+        $tomlContent = @"
+[lua]
+paths = ["$luaDirForward"]
+"@
+        Set-Content -Path $ostToml -Value $tomlContent -NoNewline -Encoding UTF8
+        Write-Log "opensteamtool.toml creado"
+    } else {
+        Write-Log "opensteamtool.toml ya existe, no se toca"
     }
 }
-
-Write-Log "Running stfixer..."
-Start-Process -FilePath $stfixerPath -ArgumentList "/stfixer" -Wait
-Write-Log "STFixer done"
 
 # === wsock32.dll ===
 Write-Log "=== wsock32.dll ==="
