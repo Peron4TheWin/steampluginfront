@@ -62,7 +62,7 @@
                                 '<div style="color:#c6d4df; font-size:15px; font-weight:600; margin-bottom:6px;">Denuvo Ticket</div>' +
                                 '<div style="color:#8f98a0; font-size:12px; margin-bottom:12px;">One-time code for ' + appId + '</div>' +
                                 '<div style="position:relative; margin-bottom:10px;">' +
-                                    '<input id="peron-denuvo-code" readonly placeholder="Click Get to generate..." style="width:100%;box-sizing:border-box;background:#316282;border:1px solid #4c6b22;color:#5ba32b;padding:10px 36px 10px 10px;border-radius:2px;font-size:20px;font-family:monospace;text-align:center;letter-spacing:4px;font-weight:700;" />' +
+                                    '<input id="peron-denuvo-code" placeholder="Paste code or click Get..." style="width:100%;box-sizing:border-box;background:#316282;border:1px solid #4c6b22;color:#5ba32b;padding:10px 36px 10px 10px;border-radius:2px;font-size:20px;font-family:monospace;text-align:center;letter-spacing:4px;font-weight:700;" />' +
                                     '<a id="peron-denuvo-copy" href="#" title="Copy code" style="position:absolute;top:8px;right:8px;display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:3px;background:#1b2838;border:1px solid #4c6b22;color:#8f98a0;text-decoration:none;">' +
                                         '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
                                     '</a>' +
