@@ -106,29 +106,7 @@
                         panel.style.display = 'none';
                         allPanels().forEach(function(c) {
                             if (c.id !== 'peron-content') c.style.display = '';
-        });
-
-        // Denuvo Apply (redeem code)
-        document.getElementById('peron-denuvo-apply').addEventListener('click', function(e) {
-            e.preventDefault();
-            var st = document.getElementById('peron-denuvo-status');
-            var input = document.getElementById('peron-denuvo-code');
-            var code = input.value.trim();
-            if (!code) { st.textContent = 'No code to apply.'; st.style.color = '#e84040'; return; }
-            st.textContent = 'Applying...';
-            st.style.color = '#f8a524';
-            fetch('http://127.0.0.1:3000/denuvo/' + appId, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ code: code })
-            }).then(function(r) { return r.text(); })
-              .then(function(t) {
-                if (t === 'OK') { st.textContent = 'Applied.'; st.style.color = '#5ba32b'; }
-                else { st.textContent = 'Error: ' + t; st.style.color = '#e84040'; }
-            }).catch(function() {
-                st.textContent = 'Connection error.'; st.style.color = '#e84040';
-            });
-        });
+                        });
                     }
                 }
             });
@@ -215,6 +193,28 @@
             var st = document.getElementById('peron-denuvo-status');
             st.textContent = 'Copied to clipboard.';
             st.style.color = '#5ba32b';
+        });
+
+        // Denuvo Apply (redeem code)
+        document.getElementById('peron-denuvo-apply').addEventListener('click', function(e) {
+            e.preventDefault();
+            var st = document.getElementById('peron-denuvo-status');
+            var input = document.getElementById('peron-denuvo-code');
+            var code = input.value.trim();
+            if (!code) { st.textContent = 'No code to apply.'; st.style.color = '#e84040'; return; }
+            st.textContent = 'Applying...';
+            st.style.color = '#f8a524';
+            fetch('http://127.0.0.1:3000/denuvo/' + appId, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code: code })
+            }).then(function(r) { return r.text(); })
+              .then(function(t) {
+                if (t === 'OK') { st.textContent = 'Applied.'; st.style.color = '#5ba32b'; }
+                else { st.textContent = 'Error: ' + t; st.style.color = '#e84040'; }
+            }).catch(function() {
+                st.textContent = 'Connection error.'; st.style.color = '#e84040';
+            });
         });
 
         console.log('[Peron] Tab injected for app ' + appId);
