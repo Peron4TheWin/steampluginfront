@@ -39,27 +39,56 @@
         setTimeout(() => overlay.querySelector("#hc-key-input").focus(), 50);
     }
 
-    async function addGame(id, btn, keyless = false) {
-        const url = keyless
-            ? `http://127.0.0.1:27060/keyless/${id}`
-            : `http://127.0.0.1:27060/${id}`;
+    function showFixedModal(id, btn, keyless) {
+        const overlay = document.createElement("div");
+        overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:99999;display:flex;align-items:center;justify-content:center;";
+        overlay.innerHTML = `
+            <div style="background:#1b2838;border:1px solid #4c6b22;border-radius:4px;padding:24px;width:400px;font-family:Arial,sans-serif;">
+                <div style="color:#c6d4df;font-size:16px;margin-bottom:8px;">Version crackeada disponible</div>
+                <div style="color:#8f98a0;font-size:13px;margin-bottom:6px;">Este juego tiene una version fija con manifiestos crackeados.</div>
+                <div style="color:#f8a524;font-size:12px;margin-bottom:16px;">Usar esta version garantiza compatibilidad con el crack.</div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;">
+                    <a id="fc-no" class="btnv6_white_transparent btn_medium" href="#"><span>No, normal</span></a>
+                    <a id="fc-yes" class="btnv6_blue_hoverfade btn_medium" href="#"><span>Usar crackeada</span></a>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        overlay.querySelector("#fc-no").onclick = (e) => {
+            e.preventDefault();
+            overlay.remove();
+            doAddGame(id, btn, keyless, false);
+        };
+        overlay.querySelector("#fc-yes").onclick = (e) => {
+            e.preventDefault();
+            overlay.remove();
+            doAddGame(id, btn, keyless, true);
+        };
+    }
+
+    async function doAddGame(id, btn, keyless, useFixed) {
+        const url = useFixed
+            ? `http://127.0.0.1:27060/fixed/${id}`
+            : keyless
+                ? `http://127.0.0.1:27060/keyless/${id}`
+                : `http://127.0.0.1:27060/${id}`;
 
         const r = await fetch(url, { method: "POST" });
 
         if (r.ok) {
-            showToast(keyless ? "Game added (keyless)!" : "Game added!");
+            showToast(useFixed ? "Fixed version added!" : keyless ? "Game added (keyless)!" : "Game added!");
             setButtonMode(btn, "remove");
             await refreshLimit();
             return;
         }
 
-        if (r.status === 401 && !keyless) {
+        if (r.status === 401 && !keyless && !useFixed) {
             const askKey = async (key) => {
                 const keyRes = await fetch("http://127.0.0.1:27060/key", {
                     method: "POST",
                     body: key
                 });
-
                 if (keyRes.ok) {
                     const retry = await fetch(`http://127.0.0.1:27060/${id}`, { method: "POST" });
                     if (retry.ok) {
@@ -70,16 +99,31 @@
                         showToast("Error: " + await retry.text(), true);
                     }
                 } else {
-                    showToast("Key inválida: " + await keyRes.text(), true);
+                    showToast("Key invalida: " + await keyRes.text(), true);
                     showKeyModal(askKey);
                 }
             };
-
             showKeyModal(askKey);
             return;
         }
 
         showToast("Error " + r.status + ": " + await r.text(), true);
+    }
+
+    async function addGame(id, btn, keyless = false) {
+        // Check fixed (cracked) version first
+        try {
+            const fixCheck = await fetch(`http://127.0.0.1:27060/hasfixed/${id}`);
+            if (fixCheck.ok) {
+                const data = await fixCheck.json();
+                if (data.available) {
+                    showFixedModal(id, btn, keyless);
+                    return;
+                }
+            }
+        } catch {}
+
+        doAddGame(id, btn, keyless, false);
     }
 
     async function removeGame(id, btn) {

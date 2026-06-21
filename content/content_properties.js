@@ -113,47 +113,69 @@
         });
         obs.observe(tablist, { attributes: true, subtree: true, attributeFilter: ['class'] });
 
-        // Load fixes on inject
+        // Check for crack
         fetch('http://127.0.0.1:3000/fixes/' + appId)
-            .then(function(r) { return r.json().catch(function() { return []; }); })
-            .then(function(fixes) {
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
                 var dd = document.getElementById('peron-fixes-dd');
-                dd.innerHTML = '';
-                if (!fixes || fixes.length === 0) {
-                    dd.innerHTML = '<option value="">None</option>';
+                var st = document.getElementById('peron-fixes-status');
+                var btn = document.getElementById('peron-fixes-apply');
+                if (d.available) {
+                    dd.innerHTML = '<option value="">Crack available</option>';
+                    st.textContent = 'Crack available - Click Apply to install';
+                    st.style.color = '#5ba32b';
                 } else {
-                    dd.innerHTML = '<option value="">-- Select a fix --</option>';
-                    fixes.forEach(function(f) {
-                        var opt = document.createElement('option');
-                        opt.value = f.id || f;
-                        opt.textContent = f.name || f;
-                        dd.appendChild(opt);
-                    });
+                    dd.innerHTML = '<option value="">None</option>';
                 }
             })
             .catch(function() {
                 document.getElementById('peron-fixes-dd').innerHTML = '<option value="">None</option>';
             });
 
-        // Fixes Apply
+        // Fixes Apply - download & extract crack with progress
         document.getElementById('peron-fixes-apply').addEventListener('click', function(e) {
             e.preventDefault();
-            var dd = document.getElementById('peron-fixes-dd');
             var st = document.getElementById('peron-fixes-status');
-            var val = dd.value;
-            if (!val) { st.textContent = 'Please select a fix first.'; st.style.color = '#e84040'; return; }
-            st.textContent = 'Applying ' + val + '...';
+            var btn = document.getElementById('peron-fixes-apply');
+            
+            st.textContent = 'Starting...';
             st.style.color = '#f8a524';
-            fetch('http://127.0.0.1:3000/fixes/' + appId + '/apply', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fix: val })
-            }).then(function(r) {
-                if (r.ok) { st.textContent = val + ' applied successfully.'; st.style.color = '#5ba32b'; }
-                else { st.textContent = 'Error applying fix.'; st.style.color = '#e84040'; }
-            }).catch(function() {
-                st.textContent = 'Connection error.'; st.style.color = '#e84040';
-            });
+            
+            fetch('http://127.0.0.1:3000/crack/' + appId + '/install', { method: 'POST' })
+                .then(function(r) {
+                    var reader = r.body.getReader();
+                    var decoder = new TextDecoder();
+                    function read() {
+                        reader.read().then(function(d) {
+                            if (d.done) return;
+                            var text = decoder.decode(d.value);
+                            var lines = text.split('\n');
+                            lines.forEach(function(line) {
+                                if (line.startsWith('data: ')) {
+                                    try {
+                                        var data = JSON.parse(line.substring(6));
+                                        if (data.status === 'done') {
+                                            st.textContent = data.msg;
+                                            st.style.color = '#5ba32b';
+                                        } else if (data.status === 'error') {
+                                            st.textContent = data.msg;
+                                            st.style.color = '#e84040';
+                                        } else {
+                                            st.textContent = data.msg || (data.status + ' ' + data.pct + '%');
+                                            st.style.color = '#f8a524';
+                                        }
+                                    } catch(e) {}
+                                }
+                            });
+                            read();
+                        });
+                    }
+                    read();
+                })
+                .catch(function(e) {
+                    st.textContent = 'Connection error: ' + e;
+                    st.style.color = '#e84040';
+                });
         });
 
         // Denuvo Get Code
